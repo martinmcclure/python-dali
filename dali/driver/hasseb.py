@@ -284,8 +284,8 @@ def SyncHassebDALIUSBDriverFactory():
 
     hasseb_hid_devices = hid.enumerate(HASSEB_USB_VENDOR, HASSEB_USB_PRODUCT)
     for hasseb_hid_device in hasseb_hid_devices:
-        logging.getLogger("SyncHassebDALIUSBDriverFactory").debug("device found, path is {}".format(hasseb_hid_device.path))
-        hasseb_dali_drivers.append(SyncHassebDALIUSBDriver(hasseb_hid_device.path))
+        logging.getLogger("SyncHassebDALIUSBDriverFactory").debug("device found, path is {}".format(hasseb_hid_device.get('path', 'No path found')))
+        hasseb_dali_drivers.append(SyncHassebDALIUSBDriver(hasseb_hid_device.get('path')))
 
     return hasseb_dali_drivers
         
