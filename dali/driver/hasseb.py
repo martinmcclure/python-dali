@@ -80,14 +80,13 @@ class HassebDALIUSBDriver(DALIDriver):
 
     def __init__(self, path=None):
         try:
-            self.device = hid.device()
             if path:
-                self.device.open_path(path)
+                self.device = hid.Device(path=path)
             else:
-                self.device.open(HASSEB_USB_VENDOR, HASSEB_USB_PRODUCT)
+                self.device = hid.Devide(vid=HASSEB_USB_VENDOR, pid=HASSEB_USB_PRODUCT)
             self.device_found = 1
         except:
-            self.device_found = None
+            self.device_found = 'Exception happened'
 
     def run_sequence(self, seq, progress_cb=None):
         from dali.gear.general import EnableDeviceType
