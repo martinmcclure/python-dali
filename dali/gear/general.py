@@ -673,17 +673,17 @@ class QueryContentDTR0(_StandardCommand):
 
 
 class QueryDeviceTypeResponse(command.Response):
-    _types = {0: "Fluorescent lamp",
-              1: "Emergency lighting",
+    _types = {0: "fluorescent lamp",
+              1: "emergency lighting",
               2: "HID lamp",
-              3: "Low voltage halogen lamp",
-              4: "Incandescent lamp dimmer",
-              5: "DC-controlled dimmer",
+              3: "low voltage halogen lamp",
+              4: "incandescent lamp dimmer",
+              5: "dc-controlled dimmer",
               6: "LED lamp",
               7: "Switching function",
               8: "Colour control",
-              254: "None / end",
-              255: "Multiple"}
+              254: "none / end",
+              255: "multiple"}
 
     def __str__(self):
         if self.value and self.value.as_integer in self._types:
