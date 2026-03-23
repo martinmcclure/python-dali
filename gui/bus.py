@@ -1,11 +1,12 @@
-from __future__ import division
-from __future__ import unicode_literals
+# from __future__ import unicode_literals
 from dali import address
 from dali.address import Short
 import dali.gear.general as gear
 import time
 
-
+class NotConnected(Exception):
+    """Exception raised if a Bus is created with no interface"""
+    
 class Device(object):
     """Any DALI slave device that has been configured with a short address."""
 

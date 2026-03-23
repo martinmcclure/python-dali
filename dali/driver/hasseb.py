@@ -12,10 +12,11 @@ from dali.sequences import sleep as sequence_sleep
 from dali.sequences import progress as sequence_progress
 
 import dali.gear.general as gear
+import dali.address as Address
 
 import time
 
-import hid
+import hidapi as hid
 
 HASSEB_USB_VENDOR = 0x04cc
 HASSEB_USB_PRODUCT = 0x0802
@@ -79,10 +80,11 @@ class HassebDALIUSBDriver(DALIDriver):
     _response_message = None
 
     def __init__(self, path=None):
+        print("path: ", path)
         try:
-            self.device = hid.device()
             if path:
-                self.device.open_path(path)
+                self.device = hid.hid_open_path(path)
+                self.path = path
             else:
                 self.device.open(HASSEB_USB_VENDOR, HASSEB_USB_PRODUCT)
             self.device_found = 1
@@ -180,16 +182,16 @@ class HassebDALIUSBDriver(DALIDriver):
         if command.response is not None:
             self._pending = command
             self._response_message = None
-            self.device.write(data)
+            hid.hid_write(self.device, data)
             self.wait_for_response()
             return command.response(self.extract(self._response_message))
         else:
             self._pending = None
-            self.device.write(data)
+            hid.hid_write(self.device, data)
             return
 
     def receive(self):
-        data = self.device.read(10)
+        data = hid.hid_read(self.device, 10)
         frame = self.extract(data)
         if isinstance(frame, HassebDALIUSBNoDataAvailable):
             return
@@ -282,7 +284,7 @@ def SyncHassebDALIUSBDriverFactory():
 
     hasseb_dali_drivers = []
 
-    hasseb_hid_devices = hid.enumerate(HASSEB_USB_VENDOR, HASSEB_USB_PRODUCT)
+    hasseb_hid_devices = hid.hid_enumerate(HASSEB_USB_VENDOR, HASSEB_USB_PRODUCT)
     for hasseb_hid_device in hasseb_hid_devices:
         logging.getLogger("SyncHassebDALIUSBDriverFactory").debug("device found, path is {}".format(hasseb_hid_device.path))
         hasseb_dali_drivers.append(SyncHassebDALIUSBDriver(hasseb_hid_device.path))
@@ -297,7 +299,7 @@ class Device(object):
         if not isinstance(address, int) or address < 0 or address > 63:
             raise ValueError("address must be an integer in the range 0..63")
         self.address = address
-        self.address_obj = Short(address)
+        self.address_obj = Address.GearShort(address)
         self.bus = None
         if bus:
             self.bind(bus)
@@ -341,20 +343,20 @@ class Bus(object):
         """Scan the bus for devices and ensure there are device objects for
         each discovered device.
         """
-        i = self.get_interface()
+        i = self._interface
         for sa in range(64):
             if sa in self._devices:
                 continue
-            response = i.send(QueryControlGearPresent(address.Short(sa)))
+            response = i.send(gear.QueryControlGearPresent(Address.GearShort(sa)))
             if response.value:
                 Device(address=sa, bus=self)
         self._bus_scanned = True
 
     def set_search_addr(self, addr):
-        i = self.get_interface()
-        i.send(SetSearchAddrH((addr >> 16) & 0xff))
-        i.send(SetSearchAddrM((addr >> 8) & 0xff))
-        i.send(SetSearchAddrL(addr & 0xff))
+        i = self._interface
+        i.send(gear.SetSearchAddrH((addr >> 16) & 0xff))
+        i.send(gear.SetSearchAddrM((addr >> 8) & 0xff))
+        i.send(gear.SetSearchAddrL(addr & 0xff))
 
     def find_next(self, low, high):
         """Find the ballast with the lowest random address.  The caller
@@ -367,14 +369,14 @@ class Bus(object):
 
         If not found, returns None.
         """
-        i = self.get_interface()
+        i = self._interface
         self.set_search_addr(high)
         if low == high:
             response = i.send(gear.Compare())
             if response.value is True:
                 return low
             return None
-        response = i.send(Compare())
+        response = i.send(gear.Compare())
         if response.value is True:
             midpoint = (low + high) // 2
             return self.find_next(low, midpoint) \
@@ -385,10 +387,10 @@ class Bus(object):
 
         """
         addrs = self.unused_addresses()
-        i = self.get_interface()
-        i.send(Terminate())
-        i.send(Initialise(broadcast=broadcast, address=None))
-        i.send(Randomise())
+        i = self._interface
+        i.send(gear.Terminate())
+        i.send(gear.Initialise(broadcast=broadcast, address=None))
+        i.send(gear.Randomise())
         # Randomise may take up to 100ms
         time.sleep(0.1)
         low = 0
@@ -398,8 +400,8 @@ class Bus(object):
             if low is not None:
                 if addrs:
                     new_addr = addrs.pop(0)
-                    i.send(ProgramShortAddress(new_addr))
-                    r = i.send(VerifyShortAddress(new_addr))
+                    i.send(gear.ProgramShortAddress(new_addr))
+                    r = i.send(gear.VerifyShortAddress(new_addr))
                     if r.value is not True:
                         print(f"Error in programming short address {new_addr}")
                     i.send(gear.Withdraw())
@@ -408,7 +410,7 @@ class Bus(object):
                     i.send(Terminate())
                     print("No free address")
                 low = low + 1
-        i.send(Terminate())
+        i.send(gear.Terminate())
 
     def assign_short_addresses(self):
         """Search for devices on the bus with no short address allocated, and
@@ -432,7 +434,7 @@ class Bus(object):
     def query_device_types(self):
         """Find the device types of the devices in the bus
         """
-        i = self.get_interface()
+        i = self._interface
         for sa in range(64):
             if sa in self._devices:
                 self._devices[sa].deviceType = i.send(gear.QueryDeviceType(sa))
@@ -440,7 +442,7 @@ class Bus(object):
     def query_groups(self):
         """Find the groups of the devices in the bus
         """
-        i = self.get_interface()
+        i = self._interface
         for sa in range(64):
             if sa in self._devices:
                 group1 = i.send(gear.QueryGroupsZeroToSeven(sa))

@@ -13,6 +13,7 @@ import dali.gear.general as gear
 import time
 
 import hidapi
+#import pyhidapi as hidapi
 
 hidapi.hid_init()
 
@@ -77,9 +78,14 @@ class HassebDALIUSBDriver(DALIDriver):
     _pending = None
     _response_message = None
 
-    def __init__(self):
+    def __init__(self, path=None):
+        print("path:", path)
         try:
-            self.device = hidapi.hid_open(HASSEB_USB_VENDOR, HASSEB_USB_PRODUCT, None)
+            if path:
+                self.device = hidapi.hid_open_path(path)
+                self.path = path
+            else:
+                self.device.open(HASSEB_USB_VENDOR, HASSEB_USB_PRODUCT)
             self.device_found = 1
         except:
             self.device_found = None

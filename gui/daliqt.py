@@ -101,6 +101,10 @@ class mainWindow(QMainWindow):
 
         self.show()
 
+#     def closeEvent(self, event):
+#         print("Handling close event")
+#         QCoreApplication.instance().quit()
+
 class tabsWidget(QWidget):
     global response_expected
     response_expected = False
